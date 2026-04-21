@@ -1,2 +1,2 @@
-# LncAPNet
-An adaptive multi-channel fusion lncRNA subcellular localization prediction model based on reinforcement learning.
+# AdaLocML
+Adaptive multi-modal representation learning reveals heterogeneous determinants of lncRNA subcellular localization
