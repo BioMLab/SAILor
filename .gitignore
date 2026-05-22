@@ -35,3 +35,22 @@ data/rigorous_splits/dataset2_*
 # Logs and notebook checkpoints
 *.log
 .ipynb_checkpoints/
+# Large local assets
+pretrained/
+mamba/
+*.bin
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.whl
+
+# Large local assets
+pretrained/
+mamba/
+*.bin
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.whl

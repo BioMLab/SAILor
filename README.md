@@ -1,77 +1,21 @@
 # AMPLoc
 
-AMPLoc 是一个用于 lncRNA 亚细胞定位预测的多模态融合系统。当前仓库的主链路以 `main_run.py` 为入口，采用“监督预热 + PPO 微调”的两阶段训练流程；模型会根据样本状态选择可用通道，再送入 policy-guided bottleneck fusion 完成分类。
+AMPLoc is a multimodal fusion system for lncRNA subcellular localization prediction. It integrates multiple sources of information, including sequence, secondary structure, CGR, and RPI, and performs final classification through supervised warmup plus PPO fine-tuning.
 
-## 发布范围
+## Introduction
 
-这个仓库面向 GitHub 发布时，建议只保留下面这些内容：
+The core idea of this project is to encode each modality separately and then fuse them through policy-guided bottleneck fusion. For paper readers, it can be understood as a multimodal modeling framework for lncRNA subcellular localization.
 
-- 主训练代码：`main_run.py`、`main_train.py`、`src/`
-- 数据集 1 的核心数据：`data/rna_data.csv`、`data/structures.csv`、`data/rigorous_splits/dataset1_*.csv`、`data/rpi_data/`
-- 主配置文件：`configs/main_config.yaml`
-- 环境文件：`environment.yml`、`requirements.txt`
-- 核心模型权重：`pretrained/channel_agent.pth`
+## Environment Setup
 
-建议不要直接提交到主仓库的内容：
-
-- 大体积派生缓存：`data/cgr_features/`、`data/processed/`、`data/processed_structures*/`、`data/raw/`
-- 大型预训练底座：`pretrained/DNABERT-2-117M/`、`pretrained/RNA-FM/`
-- 训练输出与临时实验产物：`outputs/`、`temp_test_files/`
-- dataset2 及其它一次性实验数据
-
-如果某些派生数据对复现是必要的，但体积太大，建议放到 GitHub Release、对象存储或单独的数据包中；README 里只保留下载方式和重建顺序。
-
-## 目录结构
-
-```text
-AMPLoc/
-├── main_run.py
-├── main_train.py
-├── configs/
-│   └── main_config.yaml
-├── data/
-│   ├── rna_data.csv
-│   ├── structures.csv
-│   ├── rigorous_splits/
-│   └── rpi_data/
-├── pretrained/
-│   └── channel_agent.pth
-├── scripts/
-│   └── data_prep/
-│       ├── generate_structure_csv_dataset1.py
-│       ├── build_rigorous_splits.py
-│       ├── inspect_train_val_split.py
-│       └── split_validation_dataset.py
-├── data/
-│   ├── build_inter_graph.py
-│   ├── preprocess_structures.py
-│   ├── preprocess_cgr_features.py
-│   ├── process_rbp_database.py
-│   ├── download_helper.py
-│   └── final_downloader.py
-├── src/
-└── environment.yml
-```
-
-## 核心脚本
-
-- `scripts/data_prep/generate_structure_csv_dataset1.py`：从 LinearFold 结构文件生成 dataset1 的 `structures.csv`。
-- `scripts/data_prep/build_rigorous_splits.py`：生成严格划分文件，包含 held-out test 和 development split。
-- `scripts/data_prep/inspect_train_val_split.py`：检查训练/验证切分比例和标签分布。
-- `scripts/data_prep/split_validation_dataset.py`：把验证集进一步拆成训练/测试子集。
-- `data/build_inter_graph.py`、`data/preprocess_structures.py`、`data/preprocess_cgr_features.py`、`data/process_rbp_database.py`：生成结构、CGR、RBP 和图数据的辅助脚本。
-- `data/download_helper.py`、`data/final_downloader.py`：下载和整理预训练模型的辅助脚本。
-
-## 环境安装
-
-推荐使用 Conda：
+We recommend using Conda:
 
 ```bash
 conda env create -f environment.yml
 conda activate amploc
 ```
 
-如果你更习惯 pip，也可以先创建虚拟环境，再安装：
+If you prefer pip, you can create a virtual environment first and then install the dependencies:
 
 ```bash
 python -m venv .venv
@@ -79,78 +23,92 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-如果你的机器使用的是特定 CUDA 版本，PyTorch 和 PyG 相关轮子可能需要按本地环境额外调整；`environment.yml` 提供的是发布版的统一入口，方便多数用户快速复现。
+If your machine uses a specific CUDA version, you may need to adjust the PyTorch and PyG dependencies to match your local environment.
 
-## 数据准备
+## Data Preparation
 
-默认主实验以 dataset1 为准。运行前请确认下面文件存在：
+If you already have the raw data and the required pretrained resources, you can skip this step. If you need to prepare the derived data from scratch, run the following commands in order.
 
-- `data/rna_data.csv`
-- `data/structures.csv`
-- `data/rigorous_splits/dataset1_development.csv`
-- `data/rigorous_splits/dataset1_held_out_test.csv`
-- `data/rpi_data/rpi_scores.csv`
-- `data/rpi_data/rpi_scores_GGCN.csv`
-- `data/rpi_data/rpi_scores_LPI.csv`
-- `data/rpi_data/rpi_scores_SVM.csv`
-- `data/rpi_data/rbp_locations.csv`
-- `pretrained/channel_agent.pth`
+```bash
+# 1. Generate secondary-structure files and produce the .dbn intermediates
+python scripts/data_prep/preprocess_structures.py --input_csv data/rna_data.csv --output_dir data/processed_structures_linearfold
 
-如果你只有原始 RNA 数据而没有 `structures.csv`，可以先用结构生成脚本重建；如果 `data/processed_structures_linearfold/` 这类结构缓存太大，不建议直接塞进 GitHub，推荐保留最终 `structures.csv` 作为发布件即可。
+# 2. Aggregate the .dbn files into a CSV. Training reads the CSV, not the raw .dbn files
+python scripts/data_prep/generate_structure_csv.py
 
-## 运行主训练
+# 3. Compute CGR features. This script only uses torchvision's ResNet50 ImageNet weights and does not depend on DNABERT-2, RNA-FM, or Mamba
+python scripts/data_prep/preprocess_cgr_features.py --csv_path data/rna_data.csv --output_dir data/cgr_features
+```
+
+### Pretrained Resources
+
+#### 1. Mamba
+
+Mamba is a Python package dependency and is installed through `requirements.txt`. It does not require downloading a separate file into `pretrained/`.
+
+If `pip install -r requirements.txt` fails while building Mamba on your machine, install it manually with no build isolation and then rerun the requirements installation:
+
+```bash
+pip install "causal-conv1d>=1.4.0" --no-build-isolation
+pip install "mamba-ssm>=1.2.0" --no-build-isolation
+pip install -r requirements.txt
+```
+
+If you prefer to install Mamba from source:
+
+```bash
+git clone https://github.com/state-spaces/mamba.git
+cd mamba
+pip install . --no-build-isolation
+```
+
+#### 2. DNABERT-2-117M
+
+We recommend downloading it directly from Hugging Face into the local directory instead of using `scripts/pretrained/download_helper.py` or `scripts/pretrained/final_downloader.py`:
+
+```bash
+huggingface-cli download zhihan1996/DNABERT-2-117M \
+  --local-dir pretrained/DNABERT-2-117M \
+  --local-dir-use-symlinks False
+```
+
+#### 3. RNA-FM
+
+The RNA-FM Python package is installed through `requirements.txt`. Download only the model weight file into the local pretrained directory:
+
+```bash
+huggingface-cli download cuhkaih/rnafm RNA-FM_pretrained.pth \
+  --local-dir pretrained/RNA-FM \
+  --local-dir-use-symlinks False
+```
+
+If you want to warm up the torchvision ResNet50 weights in the local cache first, you can run this before the first CGR preprocessing step:
+
+```bash
+python -c "from torchvision.models import resnet50, ResNet50_Weights; resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)"
+```
+
+- The `.dbn` files are intermediate products. The actual data used for training is the `id` and `dbn_string` stored in `data/structures.csv`.
+- `pretrained/` is no longer shipped with the repository, so readers need to download DNABERT-2-117M and RNA-FM using the commands above.
+- `mamba/` is also no longer provided in the repository. The Mamba package dependency is managed by `requirements.txt`; use the manual commands above only if the normal installation fails on your machine.
+- The CGR preprocessing script depends only on torchvision's ResNet50 pretrained weights, not on DNABERT-2-117M, RNA-FM, or Mamba.
+
+You can adjust the input and output paths in these commands to match your local directory layout.
+
+## Run Commands
 
 ```bash
 python main_run.py --config configs/main_config.yaml
 ```
 
-如果需要指定输出目录：
+If you want to specify an output directory:
 
 ```bash
 python main_run.py --config configs/main_config.yaml --output_dir outputs/my_run
 ```
 
-如果要固定 GPU：
+If you want to pin a specific GPU:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python main_run.py --config configs/main_config.yaml
 ```
-
-## 训练流程
-
-1. `main_run.py` 读取配置并构建数据集、Tokenizer 和 DataLoader。
-2. `main_train.py` 初始化 `DynamicFusionModel`、`PPOAgent` 和 `AgentInferenceManager`。
-3. 第 1 阶段进行监督预热，先稳定融合主干。
-4. 第 2 阶段进行 PPO 微调，让智能体学习更优的通道组合。
-5. 验证阶段会记录 `Ave-F1`、`MaAUC`、`MiP`、`MiR`、`MiF`，并在达到目标区间时早停。
-
-## 配置重点
-
-主配置集中在 `configs/main_config.yaml`：
-
-- `training.supervised_epochs` 和 `training.agent_epochs`：两阶段训练轮数。
-- `training.target_min` / `training.target_max`：目标区间早停。
-- `mbt_fuser.fusion_dim`、`num_layers`、`num_heads`、`num_fusion_tokens`：融合器参数。
-- `ilocbert.seq_max_len`：DNABERT-2 输入长度，默认 512，用于控制显存开销。
-- `channel_agent.enabled`：是否启用 PPO 智能体。
-- `meta_architect.active_fusion_channels`：实际参与融合的通道列表，结构视图和 RPI source 会在运行时展开。
-
-## 输出说明
-
-每次运行一般会在 `outputs/<timestamp>/` 下生成：
-
-- `config_run.yaml`
-- `run.log`
-- `best_model_supervised.pth`
-- `best_model_rl.pth`
-
-如果你打算公开仓库，建议把完整训练结果、缓存特征和临时分析物料都放在仓库外部，只保留最小可复现文件。
-
-## 复现建议
-
-如果你希望别人能尽量少配置就复现：
-
-1. 只保留 dataset1 的核心 CSV、配置和必要权重。
-2. 把大型预训练底座和派生缓存改成外部下载链接。
-3. 在 README 中保留生成脚本、输入目录结构和重建顺序。
-4. 为 dataset2 和临时实验单独开分支或单独数据包，不放进主发布仓库。
