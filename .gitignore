@@ -13,6 +13,21 @@ outputs/
 temp_test_files/
 whl/
 mamba/
+docs/
+scripts/analysis/
+scripts/legacy/
+scripts/pretrained/
+scripts/check_pretrained_impact.py
+scripts/data_prep/build_inter_graph.py
+scripts/data_prep/process_rbp_database.py
+scripts/data_prep/build_rigorous_splits.py
+scripts/data_prep/generate_structure_csv_dataset1.py
+scripts/data_prep/inspect_train_val_split.py
+scripts/data_prep/split_validation_dataset.py
+
+# Keep the data directory limited to datasets and generated artifacts only
+data/**/*.py
+data/rigorous_splits/dataset1_*
 
 configs/main_config_rpi_only_dataset2.yaml
 configs/main_config_dataset3_sequence_only.yaml
