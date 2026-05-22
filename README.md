@@ -37,14 +37,18 @@ AMPLoc/
 ├── pretrained/
 │   └── channel_agent.pth
 ├── scripts/
-│   ├── data_prep/
-│   │   ├── generate_structure_csv_dataset1.py
-│   │   ├── generate_structure_csv_dataset2.py
-│   │   ├── build_rigorous_splits.py
-│   │   ├── inspect_train_val_split.py
-│   │   └── split_validation_dataset.py
-│   └── analysis/
-│       └── amploc/
+│   └── data_prep/
+│       ├── generate_structure_csv_dataset1.py
+│       ├── build_rigorous_splits.py
+│       ├── inspect_train_val_split.py
+│       └── split_validation_dataset.py
+├── data/
+│   ├── build_inter_graph.py
+│   ├── preprocess_structures.py
+│   ├── preprocess_cgr_features.py
+│   ├── process_rbp_database.py
+│   ├── download_helper.py
+│   └── final_downloader.py
 ├── src/
 └── environment.yml
 ```
@@ -52,11 +56,11 @@ AMPLoc/
 ## 核心脚本
 
 - `scripts/data_prep/generate_structure_csv_dataset1.py`：从 LinearFold 结构文件生成 dataset1 的 `structures.csv`。
-- `scripts/data_prep/generate_structure_csv_dataset2.py`：dataset2 的结构 CSV 生成脚本，保留给历史实验或本地复现实验使用。
 - `scripts/data_prep/build_rigorous_splits.py`：生成严格划分文件，包含 held-out test 和 development split。
 - `scripts/data_prep/inspect_train_val_split.py`：检查训练/验证切分比例和标签分布。
 - `scripts/data_prep/split_validation_dataset.py`：把验证集进一步拆成训练/测试子集。
-- `scripts/analysis/amploc/`：训练历史、消融、热图和 RBP 重要性分析脚本。
+- `data/build_inter_graph.py`、`data/preprocess_structures.py`、`data/preprocess_cgr_features.py`、`data/process_rbp_database.py`：生成结构、CGR、RBP 和图数据的辅助脚本。
+- `data/download_helper.py`、`data/final_downloader.py`：下载和整理预训练模型的辅助脚本。
 
 ## 环境安装
 
@@ -150,11 +154,3 @@ CUDA_VISIBLE_DEVICES=0 python main_run.py --config configs/main_config.yaml
 2. 把大型预训练底座和派生缓存改成外部下载链接。
 3. 在 README 中保留生成脚本、输入目录结构和重建顺序。
 4. 为 dataset2 和临时实验单独开分支或单独数据包，不放进主发布仓库。
-
-## 文档
-
-- `docs/Project_Logic_Flow.md`
-- `docs/Channel_Agent_Guide.md`
-- `docs/RPI_Integration_Guide.md`
-
-这些文档更适合用来理解当前主链路的设计和通道接法。
