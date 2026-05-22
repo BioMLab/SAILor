@@ -14,6 +14,11 @@ temp_test_files/
 whl/
 mamba/
 
+configs/main_config_rpi_only_dataset2.yaml
+configs/main_config_dataset3_sequence_only.yaml
+configs/main_config_dataset2_lr_scheduler.yaml
+
+
 # Large derived data caches that should not be shipped in the main GitHub repo
 data/cgr_features/
 data/processed/
