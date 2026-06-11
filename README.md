@@ -1,6 +1,6 @@
-# AMPLoc
+# SAILor
 
-AMPLoc is a multimodal fusion system for lncRNA subcellular localization prediction. It integrates multiple sources of information, including sequence, secondary structure, CGR, and RPI, and performs final classification through supervised warmup plus PPO fine-tuning.
+SAILor is a multimodal fusion system for lncRNA subcellular localization prediction. It integrates multiple sources of information, including sequence, secondary structure, CGR, and RPI, and performs final classification through supervised warmup plus PPO fine-tuning.
 
 ## Introduction
 
